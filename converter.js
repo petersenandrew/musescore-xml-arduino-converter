@@ -50,10 +50,7 @@ function noteToMidi(step, alter, octave) {
 	const stepMap = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
 	const base = stepMap[step];
 	if (base === undefined) return null;
-	if (octave == null || isNaN(octave)) return null;
-	const midi = (octave + 1) * 12 + base + (alter || 0);
-	if (isNaN(midi)) return null;
-	return midi;
+	return (octave + 1) * 12 + base + (alter || 0);
 }
 
 function parseMusicXML(xml) {
@@ -117,7 +114,7 @@ function parseMusicXML(xml) {
 		}
 
 		const midi = noteToMidi(note.step, note.alter, note.octave);
-		if (midi == null || isNaN(midi)) return;
+		if (midi == null) return;
 
 		addEvent(part, start, duration, midi);
 
@@ -451,14 +448,13 @@ function buildInlineBlock(parsed) {
 	lines.push("");
 	lines.push("typedef struct {");
 	lines.push("  byte uid[4];");
-	lines.push("  uint8_t songIndex;");
-	lines.push("  const char* title;");
+	lines.push("  int8_t songIndex;");
 	lines.push("} RFIDMapping;");
 	lines.push("");
 	lines.push("const RFIDMapping RFID_MAPPINGS[] = {");
 	lines.push("  // Example mappings - replace with your actual RFID UIDs");
-	lines.push("  { { 0x63, 0x4A, 0xE9, 0xFB }, 0, \"Song 1\" },  // Card 1 -> Song 1");
-	lines.push("  { { 0x1B, 0x79, 0xF3, 0x00 }, 1, \"Song 2\" },  // Card 2 -> Song 2");
+	lines.push("  { { 0x63, 0x4A, 0xE9, 0xFB }, 0 },  // Card 1 -> Song 1");
+	lines.push("  { { 0x1B, 0x79, 0xF3, 0x00 }, 1 },  // Card 2 -> Song 2");
 	lines.push("};");
 	lines.push("const uint8_t NUM_RFID_MAPPINGS = sizeof(RFID_MAPPINGS) / sizeof(RFID_MAPPINGS[0]);");
 	lines.push("");
@@ -551,10 +547,7 @@ function appendSongToFile(inoPath, parsed) {
 	const midiToIndex = new Map();
 	uniqueMidi.forEach((midi) => {
 		const freq = midiToFreq(midi);
-		const index = freqToIndex.get(freq);
-		if (index !== undefined) {
-			midiToIndex.set(midi, index);
-		}
+		midiToIndex.set(midi, freqToIndex.get(freq));
 	});
 
 	let totalTicks = 0;
@@ -621,11 +614,7 @@ function appendSongToFile(inoPath, parsed) {
 	const closingBrace = songsMatch[2];
 	
 	// Build new song entry
-	const part1Name = newPartNames[0] || 'NULL';
-	const part1LenName = newPartNames[0] ? `${newPartNames[0]}_LEN` : '0';
-	const part2Name = newPartNames[1] || 'NULL';
-	const part2LenName = newPartNames[1] ? `${newPartNames[1]}_LEN` : '0';
-	const newSongEntry = `  // Song ${Math.floor(nextPartNum / 2) + 1}\n  {\n    ${part1Name}, ${part1LenName},\n    ${part2Name}, ${part2LenName},\n    ${parsed.divisions},    // ticksPerQuarter\n    ${parsed.tempo},  // tempoBPM\n    ${parsed.timeBeats},    // timeBeats\n    ${parsed.timeBeatType},    // timeBeatType\n    ${totalTicks}   // totalTicks\n  },\n`;
+	const newSongEntry = `  // Song ${Math.floor(nextPartNum / 2) + 1}\n  {\n    ${newPartNames[0]}, ${newPartNames[0]}_LEN,\n    ${newPartNames[1]}, ${newPartNames[1]}_LEN,\n    ${parsed.divisions},    // ticksPerQuarter\n    ${parsed.tempo},  // tempoBPM\n    ${parsed.timeBeats},    // timeBeats\n    ${parsed.timeBeatType},    // timeBeatType\n    ${totalTicks}   // totalTicks\n  },\n`;
 
 	// Reconstruct the SONGS array
 	const newSongsArray = songsArrayContent + newSongEntry + closingBrace;
