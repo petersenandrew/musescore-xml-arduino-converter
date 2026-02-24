@@ -2,6 +2,11 @@
 
 const fs = require("fs");
 
+// Fixed piano frequency table constants - MUST MATCH Arduino NOTE_FREQS
+const NOTE_FREQS_MIN_MIDI = 21;  // A0 - Lowest note (index 0)
+const NOTE_FREQS_COUNT = 88;     // 88 keys on standard piano (MIDI 21-108)
+const NOTE_FREQS_MAX_MIDI = NOTE_FREQS_MIN_MIDI + NOTE_FREQS_COUNT - 1;  // MIDI 108 (C8)
+
 const args = process.argv.slice(2);
 const inputPath = args[0] || "bob.musicxml";
 let outputPath = "song_data.h";
@@ -306,10 +311,14 @@ function buildOutput(parsed) {
 		allEvents.push(...events);
 	}
 
-	const uniqueMidi = Array.from(new Set(allEvents.map((e) => e.midi))).sort((a, b) => a - b);
+	// Use fixed MIDI-to-index mapping (never changes)
 	const midiToIndex = new Map();
-	uniqueMidi.forEach((midi, idx) => midiToIndex.set(midi, idx));
-	const freqs = uniqueMidi.map(midiToFreq);
+	for (const ev of allEvents) {
+		const midi = ev.midi;
+		if (midi >= NOTE_FREQS_MIN_MIDI && midi <= NOTE_FREQS_MAX_MIDI) {
+			midiToIndex.set(midi, midi - NOTE_FREQS_MIN_MIDI);
+		}
+	}
 
 	let totalTicks = 0;
 	for (const [, part] of parts) {
@@ -326,9 +335,20 @@ function buildOutput(parsed) {
 	headerLines.push("");
 	headerLines.push("typedef struct { uint16_t t; uint16_t d; uint8_t n; } Event;");
 	headerLines.push("");
+	headerLines.push("// Standard 88-key piano frequency table (MIDI 21-108, A0 to C8)");
+	headerLines.push("// DO NOT MODIFY THIS TABLE - must match Arduino's NOTE_FREQS");
 	headerLines.push(`const uint16_t NOTE_FREQS[] PROGMEM = {`);
-	headerLines.push(formatArray(freqs, 10, (v) => String(v)));
+	headerLines.push("  28, 29, 31, 33, 35, 37, 39, 41, 44, 46,     // MIDI 21-30 (A0-D#1)");
+	headerLines.push("  49, 52, 55, 58, 62, 65, 69, 73, 78, 82,     // MIDI 31-40 (E1-E2)");
+	headerLines.push("  87, 92, 98, 104, 110, 117, 124, 131, 139, 147, // MIDI 41-50 (F2-D2)");
+	headerLines.push("  156, 165, 175, 185, 196, 208, 220, 233, 247, 262, // MIDI 51-60 (C2-C3)");
+	headerLines.push("  277, 294, 311, 330, 349, 370, 392, 415, 440, 466, // MIDI 61-70 (C#3-A#3)");
+	headerLines.push("  494, 523, 554, 587, 622, 659, 698, 740, 784, 831, // MIDI 71-80 (B3-A#4)");
+	headerLines.push("  880, 932, 988, 1047, 1109, 1175, 1245, 1319, 1397, 1480, // MIDI 81-90 (A4-A#5)");
+	headerLines.push("  1568, 1661, 1760, 1865, 1976, 2093, 2217, 2349, 2489, 2637  // MIDI 91-100 (D#6)");
 	headerLines.push("};");
+	headerLines.push("const uint8_t NOTE_FREQS_MIN_MIDI = 21;");
+	headerLines.push("const uint8_t NOTE_FREQS_COUNT = 88;");
 	headerLines.push("");
 
 	const partNames = [];
@@ -381,10 +401,14 @@ function buildInlineBlock(parsed) {
 		allEvents.push(...events);
 	}
 
-	const uniqueMidi = Array.from(new Set(allEvents.map((e) => e.midi))).sort((a, b) => a - b);
+	// Use fixed MIDI-to-index mapping (never changes)
 	const midiToIndex = new Map();
-	uniqueMidi.forEach((midi, idx) => midiToIndex.set(midi, idx));
-	const freqs = uniqueMidi.map(midiToFreq);
+	for (const ev of allEvents) {
+		const midi = ev.midi;
+		if (midi >= NOTE_FREQS_MIN_MIDI && midi <= NOTE_FREQS_MAX_MIDI) {
+			midiToIndex.set(midi, midi - NOTE_FREQS_MIN_MIDI);
+		}
+	}
 
 	let totalTicks = 0;
 	for (const [, part] of parts) {
@@ -409,9 +433,20 @@ function buildInlineBlock(parsed) {
 	lines.push("  uint32_t totalTicks;");
 	lines.push("} Song;");
 	lines.push("");
+	lines.push("// Standard 88-key piano frequency table (MIDI 21-108, A0 to C8)");
+	lines.push("// DO NOT MODIFY THIS TABLE - must match converter.js");
 	lines.push(`const uint16_t NOTE_FREQS[] PROGMEM = {`);
-	lines.push(formatArray(freqs, 10, (v) => String(v)));
+	lines.push("  28, 29, 31, 33, 35, 37, 39, 41, 44, 46,     // MIDI 21-30 (A0-D#1)");
+	lines.push("  49, 52, 55, 58, 62, 65, 69, 73, 78, 82,     // MIDI 31-40 (E1-E2)");
+	lines.push("  87, 92, 98, 104, 110, 117, 124, 131, 139, 147, // MIDI 41-50 (F2-D2)");
+	lines.push("  156, 165, 175, 185, 196, 208, 220, 233, 247, 262, // MIDI 51-60 (C2-C3)");
+	lines.push("  277, 294, 311, 330, 349, 370, 392, 415, 440, 466, // MIDI 61-70 (C#3-A#3)");
+	lines.push("  494, 523, 554, 587, 622, 659, 698, 740, 784, 831, // MIDI 71-80 (B3-A#4)");
+	lines.push("  880, 932, 988, 1047, 1109, 1175, 1245, 1319, 1397, 1480, // MIDI 81-90 (A4-A#5)");
+	lines.push("  1568, 1661, 1760, 1865, 1976, 2093, 2217, 2349, 2489, 2637  // MIDI 91-100 (D#6)");
 	lines.push("};");
+	lines.push("const uint8_t NOTE_FREQS_MIN_MIDI = 21;");
+	lines.push("const uint8_t NOTE_FREQS_COUNT = 88;");
 	lines.push("");
 
 	const partNames = [];
@@ -517,25 +552,6 @@ function getNextPartNumber(content) {
 	return maxPart + 1;
 }
 
-function parseNoteFreqs(content) {
-	const match = content.match(/const\s+uint16_t\s+NOTE_FREQS\[\]\s+PROGMEM\s*=\s*\{([^}]+)\}/);
-	if (!match) return [];
-	const freqsText = match[1];
-	const freqs = freqsText.split(',').map(s => s.trim()).filter(s => s).map(Number);
-	return freqs;
-}
-
-function mergeFrequencies(existingFreqs, newMidiNotes) {
-	const freqSet = new Set(existingFreqs);
-	const newFreqs = newMidiNotes.map(midiToFreq);
-	
-	for (const freq of newFreqs) {
-		freqSet.add(freq);
-	}
-	
-	return Array.from(freqSet).sort((a, b) => a - b);
-}
-
 function appendSongToFile(inoPath, parsed) {
 	const content = fs.readFileSync(inoPath, "utf8");
 	const begin = "// SONG_DATA_BEGIN";
@@ -548,11 +564,8 @@ function appendSongToFile(inoPath, parsed) {
 	}
 
 	const nextPartNum = getNextPartNumber(content);
-	
-	// Parse existing NOTE_FREQS
-	const existingFreqs = parseNoteFreqs(content);
 
-	// Build new song parts
+	// Build new song parts - use fixed MIDI-to-index mapping
 	const parts = Array.from(parsed.parts.entries());
 	const allEvents = [];
 
@@ -564,18 +577,14 @@ function appendSongToFile(inoPath, parsed) {
 		allEvents.push(...events);
 	}
 
-	const uniqueMidi = Array.from(new Set(allEvents.map((e) => e.midi))).sort((a, b) => a - b);
-	
-	// Merge frequencies and regenerate NOTE_FREQS if needed
-	const allFreqs = mergeFrequencies(existingFreqs, uniqueMidi);
-	const freqToIndex = new Map();
-	allFreqs.forEach((freq, idx) => freqToIndex.set(freq, idx));
-	
+	// Use fixed MIDI-to-index mapping (never changes)
 	const midiToIndex = new Map();
-	uniqueMidi.forEach((midi) => {
-		const freq = midiToFreq(midi);
-		midiToIndex.set(midi, freqToIndex.get(freq));
-	});
+	for (const ev of allEvents) {
+		const midi = ev.midi;
+		if (midi >= NOTE_FREQS_MIN_MIDI && midi <= NOTE_FREQS_MAX_MIDI) {
+			midiToIndex.set(midi, midi - NOTE_FREQS_MIN_MIDI);
+		}
+	}
 
 	let totalTicks = 0;
 	for (const [, part] of parts) {
@@ -621,7 +630,6 @@ function appendSongToFile(inoPath, parsed) {
 	
 	// Ensure RFIDMapping struct has title field
 	if (!dataSection.includes("const char* title;")) {
-		// Replace the struct definition to add title field
 		dataSection = dataSection.replace(
 			/typedef struct \{\s*byte uid\[4\];\s*int8_t songIndex;\s*\} RFIDMapping;/,
 			`typedef struct {
@@ -632,13 +640,7 @@ function appendSongToFile(inoPath, parsed) {
 		);
 	}
 	
-	// Update NOTE_FREQS if we added new frequencies
-	if (allFreqs.length > existingFreqs.length) {
-		const newFreqsText = formatArray(allFreqs, 10, (v) => String(v));
-		const freqsRegex = /(const\s+uint16_t\s+NOTE_FREQS\[\]\s+PROGMEM\s*=\s*\{)[\s\S]*?(\};)/;
-		dataSection = dataSection.replace(freqsRegex, `$1\n${newFreqsText}\n$2`);
-	}
-	
+	// NOTE: Never update NOTE_FREQS - it's now fixed and never changes
 	// Find where to insert new parts (before SONG ARRAY)
 	const songArrayMarker = "// ===== SONG ARRAY =====";
 	const songArrayIdx = dataSection.indexOf(songArrayMarker);
