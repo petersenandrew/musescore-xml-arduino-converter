@@ -312,6 +312,7 @@ const uint8_t NUM_SONGS = sizeof(SONGS) / sizeof(SONGS[0]);
 typedef struct {
   byte uid[4];
   int8_t songIndex;
+  const char* title;
 } RFIDMapping;
 
 const RFIDMapping RFID_MAPPINGS[] = {
