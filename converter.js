@@ -460,12 +460,12 @@ function buildInlineBlock(parsed) {
 	lines.push("typedef struct {");
 	lines.push("  byte uid[4];");
 	lines.push("  int8_t songIndex;");
+	lines.push("  const char* title;");
 	lines.push("} RFIDMapping;");
 	lines.push("");
 	lines.push("const RFIDMapping RFID_MAPPINGS[] = {");
-	lines.push("  // Example mappings - replace with your actual RFID UIDs");
-	lines.push("  { { 0x63, 0x4A, 0xE9, 0xFB }, 0 },  // Card 1 -> Song 1");
-	lines.push("  { { 0x1B, 0x79, 0xF3, 0x00 }, 1 },  // Card 2 -> Song 2");
+	lines.push("  // Manually add your RFID mappings here");
+	lines.push("  // Format: { { 0xXX, 0xXX, 0xXX, 0xXX }, songIndex, \"Song Name\" },");
 	lines.push("};");
 	lines.push("const uint8_t NUM_RFID_MAPPINGS = sizeof(RFID_MAPPINGS) / sizeof(RFID_MAPPINGS[0]);");
 	lines.push("");
@@ -484,9 +484,25 @@ function writeInlineData(inoPath, block) {
 	if (start === -1 || stop === -1 || stop < start) {
 		throw new Error(`Missing ${begin}/${end} markers in ${inoPath}`);
 	}
+	
+	// Extract existing RFID_MAPPINGS to preserve them
+	const existingDataSection = content.slice(start + begin.length, stop);
+	const mappingsRegex = /const RFIDMapping RFID_MAPPINGS\[\]\s*=\s*\{[\s\S]*?\n\};/;
+	const mappingsMatch = existingDataSection.match(mappingsRegex);
+	
+	// If there are existing mappings, preserve them by replacing the placeholder
+	let finalBlock = block;
+	if (mappingsMatch && !mappingsMatch[0].includes("Manually add your RFID mappings")) {
+		const existingMappings = mappingsMatch[0];
+		finalBlock = finalBlock.replace(
+			/const RFIDMapping RFID_MAPPINGS\[\]\s*=\s*\{[\s\S]*?\n\};/,
+			existingMappings
+		);
+	}
+	
 	const before = content.slice(0, start);
 	const after = content.slice(stop + end.length);
-	const updated = `${before}${block}${after}`;
+	const updated = `${before}${finalBlock}${after}`;
 	fs.writeFileSync(inoPath, updated, "utf8");
 }
 
@@ -602,6 +618,19 @@ function appendSongToFile(inoPath, parsed) {
 		newPartNames.push(emptyPartName);
 	}
 	let dataSection = content.substring(startIdx + begin.length, endIdx);
+	
+	// Ensure RFIDMapping struct has title field
+	if (!dataSection.includes("const char* title;")) {
+		// Replace the struct definition to add title field
+		dataSection = dataSection.replace(
+			/typedef struct \{\s*byte uid\[4\];\s*int8_t songIndex;\s*\} RFIDMapping;/,
+			`typedef struct {
+  byte uid[4];
+  int8_t songIndex;
+  const char* title;
+} RFIDMapping;`
+		);
+	}
 	
 	// Update NOTE_FREQS if we added new frequencies
 	if (allFreqs.length > existingFreqs.length) {
