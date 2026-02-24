@@ -352,7 +352,12 @@ function buildOutput(parsed) {
 		headerLines.push(`const uint16_t ${partName.name}_LEN = sizeof(${partName.name}) / sizeof(${partName.name}[0]);`);
 		headerLines.push("");
 	});
-
+	// Ensure we have at least 2 parts by creating empty ones if needed
+	for (let i = partNames.length; i < 2; i++) {
+		headerLines.push(`const Event PART${i + 1}[] PROGMEM = {};`);
+		headerLines.push(`const uint16_t PART${i + 1}_LEN = 0;`);
+		headerLines.push("");
+	}
 	headerLines.push(`const uint16_t TICKS_PER_QUARTER = ${parsed.divisions};`);
 	headerLines.push(`const uint16_t TEMPO_BPM = ${parsed.tempo};`);
 	headerLines.push(`const uint8_t TIME_BEATS = ${parsed.timeBeats};`);
@@ -430,7 +435,13 @@ function buildInlineBlock(parsed) {
 		lines.push(`const uint16_t ${partName.name}_LEN = sizeof(${partName.name}) / sizeof(${partName.name}[0]);`);
 		lines.push("");
 	});
-
+	lines.push("");
+	// Ensure we have at least 2 parts by creating empty ones if needed
+	for (let i = partNames.length; i < 2; i++) {
+		lines.push(`const Event PART${i + 1}[] PROGMEM = {};`);
+		lines.push(`const uint16_t PART${i + 1}_LEN = 0;`);
+		lines.push("");
+	}
 	lines.push("// ===== SONG ARRAY =====");
 	lines.push("const Song SONGS[] = {");
 	lines.push("  // Song 1");
@@ -582,7 +593,14 @@ function appendSongToFile(inoPath, parsed) {
 		newPartsLines.push(`const uint16_t ${partName}_LEN = sizeof(${partName}) / sizeof(${partName}[0]);`);
 		newPartsLines.push("");
 	});
-
+	// Ensure we have at least 2 parts by creating empty ones if needed
+	for (let i = newPartNames.length; i < 2; i++) {
+		const emptyPartName = `PART${nextPartNum + i}`;
+		newPartsLines.push(`const Event ${emptyPartName}[] PROGMEM = {};`);
+		newPartsLines.push(`const uint16_t ${emptyPartName}_LEN = 0;`);
+		newPartsLines.push("");
+		newPartNames.push(emptyPartName);
+	}
 	let dataSection = content.substring(startIdx + begin.length, endIdx);
 	
 	// Update NOTE_FREQS if we added new frequencies
@@ -613,8 +631,10 @@ function appendSongToFile(inoPath, parsed) {
 	const songsArrayContent = songsMatch[1];
 	const closingBrace = songsMatch[2];
 	
-	// Build new song entry
-	const newSongEntry = `  // Song ${Math.floor(nextPartNum / 2) + 1}\n  {\n    ${newPartNames[0]}, ${newPartNames[0]}_LEN,\n    ${newPartNames[1]}, ${newPartNames[1]}_LEN,\n    ${parsed.divisions},    // ticksPerQuarter\n    ${parsed.tempo},  // tempoBPM\n    ${parsed.timeBeats},    // timeBeats\n    ${parsed.timeBeatType},    // timeBeatType\n    ${totalTicks}   // totalTicks\n  },\n`;
+	// Build new song entry (ensure at least 2 parts)
+	const part1Name = newPartNames[0] || `PART${nextPartNum}`;
+	const part2Name = newPartNames[1] || `PART${nextPartNum + 1}`;
+	const newSongEntry = `  // Song ${Math.floor(nextPartNum / 2) + 1}\n  {\n    ${part1Name}, ${part1Name}_LEN,\n    ${part2Name}, ${part2Name}_LEN,\n    ${parsed.divisions},    // ticksPerQuarter\n    ${parsed.tempo},  // tempoBPM\n    ${parsed.timeBeats},    // timeBeats\n    ${parsed.timeBeatType},    // timeBeatType\n    ${totalTicks}   // totalTicks\n  },\n`;
 
 	// Reconstruct the SONGS array
 	const newSongsArray = songsArrayContent + newSongEntry + closingBrace;
