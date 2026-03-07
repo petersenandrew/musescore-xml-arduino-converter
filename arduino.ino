@@ -8,6 +8,7 @@
 #include <MFRC522.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+#include <Servo.h>
 
 // SONG_DATA_BEGIN
 typedef struct { uint16_t t; uint16_t d; uint8_t n; } Event;
@@ -583,10 +584,10 @@ const RFIDMapping RFID_MAPPINGS[] = {
 
   // Add your RFID mappings here
   // Format: { { 0xXX, 0xXX, 0xXX, 0xXX }, songIndex, "Song Name" },
-  { { 0x1B, 0x79, 0xF3, 0x00 }, 0, "Daisy Bell" },
+  { { 0x63, 0x4A, 0xE9, 0xFB }, 0, "Daisy Bell" },
   { { 0x86, 0x8E, 0x5A, 0x30 }, 1, "Glasgow City Police Pipers" },
-  { { 0x09, 0x63, 0x15, 0xC1 }, 2, "Homecoming" },
-  { { 0x63, 0x4A, 0xE9, 0xFB }, 3, "Laundry Machine" },
+  { { 0x1B, 0x79, 0xF3, 0x00 }, 2, "Homecoming" },
+  { { 0x09, 0x63, 0x15, 0xC1 }, 3, "Laundry Machine" },
   { { 0x33, 0x0E, 0xDE, 0x0B }, 4, "Simple Gifts" },
   { { 0x86, 0x06, 0xCA, 0x30 }, 5, "The Happy Farmer" },
 
@@ -601,6 +602,7 @@ const uint8_t SONG_TO_PLAY = 255;
 // RFID Pins (Arduino Mega)
 #define RST_PIN 5  // Moved near SPI pins for cleaner wiring
 #define SS_PIN 53   // SPI Slave Select
+Servo servo;
 
 // Buzzer Pins
 const int BZ1 = 8; // Violin
@@ -758,6 +760,9 @@ void updatePlayback() {
   if (currTick > song.totalTicks && !p1.hasNext && !p2.hasNext && p1.halfUs == 0 && p2.halfUs == 0) {
     stopSong();
     Serial.println(F("Song finished"));
+    servo.write(170);
+    delay(15000);
+    servo.write(90);
     return;
   }
 
@@ -889,6 +894,8 @@ void setup() {
   pinMode(51, OUTPUT); // MOSI (Mega)
   pinMode(50, INPUT);  // MISO (Mega)
   pinMode(52, OUTPUT); // SCK (Mega)
+  servo.attach(12);
+  servo.write(100);
   
   // Initialize I2C LCD (SDA=20, SCL=21 on Arduino Mega)
   Wire.begin();
@@ -957,6 +964,7 @@ void setup() {
   } else if (SONG_TO_PLAY < NUM_SONGS) {
     // Play specific song
     playSongOnce(SONG_TO_PLAY);
+    Serial.println("test");
   }
 }
 
