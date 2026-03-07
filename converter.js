@@ -496,6 +496,7 @@ function buildInlineBlock(parsed) {
 	lines.push("  byte uid[4];");
 	lines.push("  int8_t songIndex;");
 	lines.push("  const char* title;");
+	lines.push("  const char* mood;");
 	lines.push("} RFIDMapping;");
 	lines.push("");
 	lines.push("const RFIDMapping RFID_MAPPINGS[] = {");
