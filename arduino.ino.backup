@@ -8,14 +8,15 @@
 #include <MFRC522.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+#include <Servo.h>
 
 // SONG_DATA_BEGIN
 typedef struct { uint16_t t; uint16_t d; uint8_t n; } Event;
 
 typedef struct {
-  const Event *part1;
+  const Event* part1;
   uint16_t part1_len;
-  const Event *part2;
+  const Event* part2;
   uint16_t part2_len;
   uint16_t ticksPerQuarter;
   uint16_t tempoBPM;
@@ -24,183 +25,44 @@ typedef struct {
   uint32_t totalTicks;
 } Song;
 
-// Standard 88-key piano frequency table (MIDI 21-108, A0 to C8)
-// Index 0 = MIDI 21 (A0), Index 87 = MIDI 108 (C8)
-// DO NOT MODIFY THIS TABLE - Converter uses the same table to maintain consistency
 const uint16_t NOTE_FREQS[] PROGMEM = {
-  28, 29, 31, 33, 35, 37, 39, 41, 44, 46,     // MIDI 21-30 (A0-D#1)
-  49, 52, 55, 58, 62, 65, 69, 73, 78, 82,     // MIDI 31-40 (E1-E2)
-  87, 92, 98, 104, 110, 117, 124, 131, 139, 147, // MIDI 41-50 (F2-D2)
-  156, 165, 175, 185, 196, 208, 220, 233, 247, 262, // MIDI 51-60 (C2-C3)
-  277, 294, 311, 330, 349, 370, 392, 415, 440, 466, // MIDI 61-70 (C#3-A#3)
-  494, 523, 554, 587, 622, 659, 698, 740, 784, 831, // MIDI 71-80 (B3-A#4)
-  880, 932, 988, 1047, 1109, 1175, 1245, 1319, 1397, 1480, // MIDI 81-90 (A4-A#5)
-  1568, 1661, 1760, 1865, 1976, 2093, 2217, 2349, 2489, 2637  // MIDI 91-100 (B5-D#6)
+  // Frequencies will be populated when you add songs
 };
-const uint8_t NOTE_FREQS_MIN_MIDI = 21;  // A0 - Index 0 in NOTE_FREQS
-const uint8_t NOTE_FREQS_COUNT = 88;     // 88 keys on standard piano
-
-const Event PART1[] PROGMEM = {
-  { 96, 4, 24 }, { 100, 4, 23 }, { 104, 4, 24 },
-  { 108, 4, 21 }, { 112, 4, 19 }, { 116, 4, 18 },
-  { 120, 8, 19 }, { 128, 4, 17 }, { 132, 8, 14 },
-  { 144, 12, 19 }, { 156, 12, 14 }, { 168, 12, 24 },
-  { 180, 12, 21 }, { 192, 4, 24 }, { 196, 4, 23 },
-  { 200, 4, 24 }, { 204, 4, 21 }, { 208, 4, 19 },
-  { 212, 4, 18 }, { 216, 8, 19 }, { 224, 4, 17 },
-  { 228, 8, 14 }, { 240, 4, 18 }, { 244, 4, 24 },
-  { 248, 4, 18 }, { 252, 4, 17 }, { 256, 4, 14 },
-  { 260, 4, 19 }, { 264, 10, 18 }, { 276, 8, 18 },
-  { 288, 4, 21 }, { 292, 4, 22 }, { 296, 4, 21 },
-  { 300, 4, 19 }, { 304, 4, 18 }, { 308, 4, 17 },
-  { 312, 8, 21 }, { 320, 4, 18 }, { 324, 8, 16 },
-  { 336, 4, 24 }, { 340, 4, 22 }, { 344, 4, 21 },
-  { 348, 8, 19 }, { 356, 4, 20 }, { 360, 10, 21 },
-  { 372, 4, 21 }, { 384, 4, 21 }, { 388, 4, 22 },
-  { 392, 4, 21 }, { 396, 4, 19 }, { 400, 4, 18 },
-  { 404, 4, 17 }, { 408, 8, 21 }, { 416, 4, 18 },
-  { 420, 8, 16 }, { 428, 4, 21 }, { 432, 4, 19 },
-  { 436, 4, 25 }, { 440, 4, 23 }, { 444, 8, 21 },
-  { 452, 4, 19 }, { 456, 10, 24 }, { 468, 8, 24 },
-  { 480, 12, 24 }, { 492, 12, 21 }, { 504, 12, 18 },
-  { 516, 12, 14 }, { 528, 4, 16 }, { 532, 4, 17 },
-  { 536, 4, 18 }, { 540, 8, 16 }, { 548, 4, 18 },
-  { 552, 10, 14 }, { 564, 8, 14 }, { 576, 12, 19 },
-  { 588, 12, 24 }, { 600, 12, 21 }, { 612, 12, 18 },
-  { 624, 4, 16 }, { 628, 4, 17 }, { 632, 4, 18 },
-  { 636, 8, 19 }, { 644, 4, 21 }, { 648, 10, 19 },
-  { 660, 4, 19 }, { 668, 4, 21 }, { 672, 4, 22 },
-  { 676, 4, 21 }, { 680, 4, 19 }, { 684, 8, 24 },
-  { 692, 4, 21 }, { 696, 4, 19 }, { 700, 6, 18 },
-  { 708, 4, 18 }, { 716, 4, 19 }, { 720, 8, 21 },
-  { 730, 2, 18 }, { 732, 8, 16 }, { 742, 2, 18 },
-  { 744, 4, 16 }, { 748, 6, 14 }, { 756, 4, 14 },
-  { 764, 4, 14 }, { 768, 8, 18 }, { 776, 4, 21 },
-  { 780, 3, 19 }, { 792, 8, 18 }, { 800, 4, 21 },
-  { 804, 3, 19 }, { 812, 2, 21 }, { 814, 2, 22 },
-  { 816, 4, 24 }, { 820, 4, 21 }, { 824, 4, 18 },
-  { 828, 8, 19 }, { 836, 4, 14 }, { 840, 10, 18 },
-  { 852, 12, 18 },
-};
-const uint16_t PART1_LEN = sizeof(PART1) / sizeof(PART1[0]);
-
-const Event PART2[] PROGMEM = {
-  { 0, 4, 32 }, { 4, 4, 31 }, { 8, 4, 32 },
-  { 12, 4, 30 }, { 16, 4, 28 }, { 20, 4, 27 },
-  { 24, 8, 28 }, { 32, 4, 26 }, { 36, 8, 24 },
-  { 44, 4, 32 }, { 48, 2, 30 }, { 50, 2, 24 },
-  { 52, 2, 25 }, { 54, 2, 26 }, { 56, 2, 27 },
-  { 58, 2, 28 }, { 60, 2, 29 }, { 62, 2, 30 },
-  { 64, 2, 33 }, { 66, 2, 32 }, { 68, 2, 30 },
-  { 70, 2, 27 }, { 72, 8, 28 }, { 80, 4, 24 },
-  { 84, 12, 27 }, { 96, 4, 9 }, { 100, 4, 14 },
-  { 104, 4, 18 }, { 108, 4, 9 }, { 112, 4, 14 },
-  { 116, 4, 18 }, { 120, 4, 8 }, { 124, 4, 14 },
-  { 128, 4, 19 }, { 132, 4, 6 }, { 136, 4, 14 },
-  { 140, 4, 17 }, { 144, 4, 8 }, { 148, 4, 14 },
-  { 152, 4, 19 }, { 156, 4, 6 }, { 160, 4, 14 },
-  { 164, 4, 17 }, { 168, 4, 9 }, { 172, 4, 14 },
-  { 176, 4, 18 }, { 180, 4, 6 }, { 184, 4, 14 },
-  { 188, 4, 18 }, { 192, 4, 9 }, { 196, 4, 14 },
-  { 200, 4, 18 }, { 204, 4, 9 }, { 208, 4, 14 },
-  { 212, 4, 18 }, { 216, 4, 8 }, { 220, 4, 14 },
-  { 224, 4, 19 }, { 228, 4, 6 }, { 232, 4, 14 },
-  { 236, 4, 17 }, { 240, 4, 9 }, { 244, 4, 14 },
-  { 248, 4, 18 }, { 252, 4, 6 }, { 256, 4, 14 },
-  { 260, 4, 17 }, { 264, 4, 9 }, { 268, 4, 6 },
-  { 272, 4, 4 }, { 276, 8, 2 }, { 288, 4, 7 },
-  { 292, 4, 11 }, { 296, 4, 16 }, { 300, 4, 4 },
-  { 304, 4, 11 }, { 308, 4, 15 }, { 312, 4, 7 },
-  { 316, 4, 11 }, { 320, 4, 16 }, { 324, 4, 7 },
-  { 328, 4, 9 }, { 332, 4, 11 }, { 336, 4, 8 },
-  { 340, 4, 12 }, { 344, 4, 14 }, { 348, 4, 8 },
-  { 352, 4, 12 }, { 356, 4, 14 }, { 360, 4, 9 },
-  { 364, 2, 20 }, { 366, 2, 21 }, { 368, 2, 24 },
-  { 370, 2, 27 }, { 372, 8, 30 }, { 384, 4, 7 },
-  { 388, 4, 11 }, { 392, 4, 16 }, { 396, 4, 4 },
-  { 400, 4, 11 }, { 404, 4, 15 }, { 408, 4, 7 },
-  { 412, 4, 11 }, { 416, 4, 16 }, { 420, 4, 7 },
-  { 424, 4, 11 }, { 428, 4, 16 }, { 432, 4, 3 },
-  { 436, 4, 10 }, { 440, 4, 13 }, { 444, 4, 3 },
-  { 448, 4, 10 }, { 452, 4, 13 }, { 456, 4, 6 },
-  { 460, 4, 17 }, { 464, 4, 19 }, { 468, 8, 14 },
-  { 480, 4, 9 }, { 484, 4, 18 }, { 488, 4, 21 },
-  { 492, 4, 11 }, { 496, 4, 14 }, { 500, 4, 18 },
-  { 504, 4, 4 }, { 508, 4, 9 }, { 512, 4, 14 },
-  { 516, 4, 2 }, { 520, 4, 9 }, { 524, 4, 11 },
-  { 528, 4, 5 }, { 532, 4, 9 }, { 536, 4, 12 },
-  { 540, 4, 5 }, { 544, 4, 9 }, { 548, 4, 12 },
-  { 552, 4, 2 }, { 556, 4, 6 }, { 560, 4, 4 },
-  { 564, 4, 2 }, { 568, 4, 9 }, { 572, 4, 11 },
-  { 576, 4, 8 }, { 580, 4, 12 }, { 584, 4, 14 },
-  { 588, 4, 6 }, { 592, 4, 12 }, { 596, 4, 14 },
-  { 600, 4, 9 }, { 604, 4, 14 }, { 608, 4, 18 },
-  { 612, 4, 7 }, { 616, 4, 11 }, { 620, 4, 16 },
-  { 624, 4, 3 }, { 628, 4, 10 }, { 632, 4, 13 },
-  { 636, 4, 3 }, { 640, 4, 10 }, { 644, 4, 13 },
-  { 648, 4, 6 }, { 652, 4, 10 }, { 656, 4, 14 },
-  { 660, 4, 6 }, { 664, 4, 10 }, { 668, 4, 14 },
-  { 672, 4, 8 }, { 676, 4, 12 }, { 680, 4, 14 },
-  { 684, 4, 6 }, { 688, 4, 12 }, { 692, 4, 14 },
-  { 696, 4, 9 }, { 700, 4, 11 }, { 704, 4, 14 },
-  { 708, 4, 9 }, { 712, 4, 11 }, { 716, 4, 14 },
-  { 720, 4, 7 }, { 724, 4, 9 }, { 730, 2, 11 },
-  { 732, 4, 5 }, { 736, 4, 9 }, { 742, 2, 12 },
-  { 744, 4, 2 }, { 748, 4, 9 }, { 752, 4, 11 },
-  { 756, 4, 1 }, { 760, 4, 10 }, { 764, 4, 12 },
-  { 768, 4, 2 }, { 772, 4, 9 }, { 776, 4, 11 },
-  { 780, 3, 12 }, { 792, 4, 2 }, { 796, 4, 9 },
-  { 800, 4, 11 }, { 804, 3, 12 }, { 816, 4, 2 },
-  { 820, 4, 9 }, { 824, 4, 11 }, { 828, 4, 0 },
-  { 832, 4, 8 }, { 836, 4, 12 }, { 840, 4, 9 },
-  { 844, 4, 6 }, { 848, 4, 4 }, { 852, 12, 2 },
-};
-const uint16_t PART2_LEN = sizeof(PART2) / sizeof(PART2[0]);
-
 
 // ===== SONG ARRAY =====
 const Song SONGS[] = {
-  // Song 1
-  {
-    PART1, PART1_LEN,
-    PART2, PART2_LEN,
-    4,    // ticksPerQuarter
-    180,  // tempoBPM
-    3,    // timeBeats
-    4,    // timeBeatType
-    864   // totalTicks
-  },
+  // Add songs using: node converter.js song.musicxml --append arduino.ino
 };
 const uint8_t NUM_SONGS = sizeof(SONGS) / sizeof(SONGS[0]);
 
+// RFID UID to Song mapping
 typedef struct {
   byte uid[4];
-  int8_t songIndex;
-  const char* title;
+  uint8_t songIndex;
 } RFIDMapping;
 
+// Map your RFID cards to songs - RFID 1 plays Song 1, RFID 2 plays Song 2, etc.
 const RFIDMapping RFID_MAPPINGS[] = {
 
-
   // Add your RFID mappings here
-  // Format: { { 0xXX, 0xXX, 0xXX, 0xXX }, songIndex, "Song Name" },
-  { { 0x1B, 0x79, 0xF3, 0x00 }, 0, "Daisy Bell" },
-  { { 0x86, 0x8E, 0x5A, 0x30 }, 1, "Glasgow City Police Pipers" },
-  { { 0x09, 0x63, 0x15, 0xC1 }, 2, "Homecoming" },
-  { { 0x63, 0x4A, 0xE9, 0xFB }, 3, "Laundry Machine" },
-  { { 0x33, 0x0E, 0xDE, 0x0B }, 4, "Simple Gifts" },
-  { { 0x86, 0x06, 0xCA, 0x30 }, 5, "The Happy Farmer" },
-
+  // Format: { { 0xXX, 0xXX, 0xXX, 0xXX }, songIndex, "Song Name", "Mood" },
+  { { 0xE2, 0x83, 0x50, 0x20 }, 0, "Olymic Fanfare", "Euphoric" },
+  { { 0x86, 0x06, 0xCA, 0x30 }, 1, "Morning Mood", "Calm" },
+  { { 0x86, 0x8E, 0x5A, 0x30 }, 2, "William Tell Overture", "Energized" },
+  { { 0x09, 0x63, 0x15, 0xC1 }, 3, "Home on the Range", "Melancholic" },
+  { { 0x1B, 0x79, 0xF3, 0x00 }, 4, "crossing field", "Intense" },
 
 };
 const uint8_t NUM_RFID_MAPPINGS = sizeof(RFID_MAPPINGS) / sizeof(RFID_MAPPINGS[0]);
 
-const uint8_t SONG_TO_PLAY = 255;
+// Playback configuration
+const uint8_t SONG_TO_PLAY = 255; // 255 = RFID mode, 0-253 = play specific song once, 254 = play all sequentially
 // SONG_DATA_END
 
 // RFID Pins (Arduino Mega)
 #define RST_PIN 5  // Moved near SPI pins for cleaner wiring
 #define SS_PIN 53   // SPI Slave Select
+Servo servo;
 
 // Buzzer Pins
 const int BZ1 = 8; // Violin
@@ -218,6 +80,7 @@ bool songActive = false;
 uint32_t songStartTime = 0;
 uint32_t currentPulseUs = 0;
 const char* currentSongTitle = NULL;
+const char* currentSongMood = NULL;
 
 struct Player {
   const Event *events;
@@ -243,6 +106,18 @@ static Event readEvent(const Event *events, uint16_t idx) {
 
 static uint16_t readFreq(uint8_t idx) {
   return pgm_read_word(&NOTE_FREQS[idx]);
+}
+
+static void printLCDLine(uint8_t row, const char* text) {
+  lcd.setCursor(0, row);
+  if (text == NULL) {
+    return;
+  }
+
+  // Keep output on one row of a 16x2 LCD.
+  for (uint8_t i = 0; i < 16 && text[i] != '\0'; i++) {
+    lcd.print(text[i]);
+  }
 }
 
 static void initPlayer(Player &p, const Event *events, uint16_t len, uint8_t pin) {
@@ -290,10 +165,12 @@ int8_t findSongByRFID(byte *uid) {
     }
     if (match) {
       currentSongTitle = RFID_MAPPINGS[i].title;
+      currentSongMood = RFID_MAPPINGS[i].mood;
       return RFID_MAPPINGS[i].songIndex;
     }
   }
   currentSongTitle = NULL;
+  currentSongMood = NULL;
   return -1;
 }
 
@@ -319,16 +196,17 @@ void startSong(uint8_t songIndex) {
   
   // Update LCD display
   lcd.clear();
-  lcd.setCursor(0, 0);
   if (currentSongTitle != NULL) {
-    lcd.print(currentSongTitle);
+    printLCDLine(0, currentSongTitle);
   } else {
-    lcd.print(F("Song "));
-    lcd.print(songIndex + 1);
+    printLCDLine(0, "Unknown Title");
   }
-  lcd.setCursor(0, 1);
-  lcd.print(song.tempoBPM);
-  lcd.print(F(" BPM"));
+
+  if (currentSongMood != NULL) {
+    printLCDLine(1, currentSongMood);
+  } else {
+    printLCDLine(1, "Mood Unknown");
+  }
 }
 
 void stopSong() {
@@ -358,6 +236,9 @@ void updatePlayback() {
   if (currTick > song.totalTicks && !p1.hasNext && !p2.hasNext && p1.halfUs == 0 && p2.halfUs == 0) {
     stopSong();
     Serial.println(F("Song finished"));
+    servo.write(170);
+    delay(15000);
+    servo.write(90);
     return;
   }
 
@@ -489,6 +370,8 @@ void setup() {
   pinMode(51, OUTPUT); // MOSI (Mega)
   pinMode(50, INPUT);  // MISO (Mega)
   pinMode(52, OUTPUT); // SCK (Mega)
+  servo.attach(12);
+  servo.write(100);
   
   // Initialize I2C LCD (SDA=20, SCL=21 on Arduino Mega)
   Wire.begin();
@@ -557,6 +440,7 @@ void setup() {
   } else if (SONG_TO_PLAY < NUM_SONGS) {
     // Play specific song
     playSongOnce(SONG_TO_PLAY);
+    Serial.println("test");
   }
 }
 
