@@ -86,9 +86,9 @@ Edit the `RFID_MAPPINGS` array in arduino.ino:
 
 ```cpp
 const RFIDMapping RFID_MAPPINGS[] = {
-  {{0xDE, 0xAD, 0xBE, 0xEF}, 0},  // Blue card → Song 0 (bob.musicxml)
-  {{0x12, 0x34, 0x56, 0x78}, 1},  // Red card → Song 1 (scotlandHIGH.musicxml)
-  {{0xAB, 0xCD, 0xEF, 0x01}, 2},  // Green card → Song 2 (scotlandLOW.musicxml)
+  {{0xDE, 0xAD, 0xBE, 0xEF}, 0, "Blue Song", "Joyful"},
+  {{0x12, 0x34, 0x56, 0x78}, 1, "Red Song", "Triumphant"},
+  {{0xAB, 0xCD, 0xEF, 0x01}, 2, "Green Song", "Reflective"},
 };
 ```
 

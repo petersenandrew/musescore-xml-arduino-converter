@@ -576,22 +576,17 @@ typedef struct {
   byte uid[4];
   int8_t songIndex;
   const char* title;
+  const char* mood;
 } RFIDMapping;
 
 const RFIDMapping RFID_MAPPINGS[] = {
-
-
-
   // Add your RFID mappings here
-  // Format: { { 0xXX, 0xXX, 0xXX, 0xXX }, songIndex, "Song Name" },
+  // Format: { { 0xXX, 0xXX, 0xXX, 0xXX }, songIndex, "Song Name", "Mood" },
   { { 0xE2, 0x83, 0x50, 0x20 }, 0, "Olymic Fanfare", "Euphoric" },
   { { 0x86, 0x06, 0xCA, 0x30 }, 1, "Morning Mood", "Calm" },
   { { 0x86, 0x8E, 0x5A, 0x30 }, 2, "William Tell Overture", "Energized" },
   { { 0x09, 0x63, 0x15, 0xC1 }, 3, "Home on the Range", "Melancholic" },
   { { 0x1B, 0x79, 0xF3, 0x00 }, 4, "crossing field", "Intense" },
-
-
-
 };
 const uint8_t NUM_RFID_MAPPINGS = sizeof(RFID_MAPPINGS) / sizeof(RFID_MAPPINGS[0]);
 
@@ -619,6 +614,7 @@ bool songActive = false;
 uint32_t songStartTime = 0;
 uint32_t currentPulseUs = 0;
 const char* currentSongTitle = NULL;
+const char* currentSongMood = NULL;
 
 struct Player {
   const Event *events;
@@ -644,6 +640,18 @@ static Event readEvent(const Event *events, uint16_t idx) {
 
 static uint16_t readFreq(uint8_t idx) {
   return pgm_read_word(&NOTE_FREQS[idx]);
+}
+
+static void printLCDLine(uint8_t row, const char* text) {
+  lcd.setCursor(0, row);
+  if (text == NULL) {
+    return;
+  }
+
+  // Keep output on one row of a 16x2 LCD.
+  for (uint8_t i = 0; i < 16 && text[i] != '\0'; i++) {
+    lcd.print(text[i]);
+  }
 }
 
 static void initPlayer(Player &p, const Event *events, uint16_t len, uint8_t pin) {
@@ -691,10 +699,12 @@ int8_t findSongByRFID(byte *uid) {
     }
     if (match) {
       currentSongTitle = RFID_MAPPINGS[i].title;
+      currentSongMood = RFID_MAPPINGS[i].mood;
       return RFID_MAPPINGS[i].songIndex;
     }
   }
   currentSongTitle = NULL;
+  currentSongMood = NULL;
   return -1;
 }
 
@@ -720,16 +730,17 @@ void startSong(uint8_t songIndex) {
   
   // Update LCD display
   lcd.clear();
-  lcd.setCursor(0, 0);
   if (currentSongTitle != NULL) {
-    lcd.print(currentSongTitle);
+    printLCDLine(0, currentSongTitle);
   } else {
-    lcd.print(F("Song "));
-    lcd.print(songIndex + 1);
+    printLCDLine(0, "Unknown Title");
   }
-  lcd.setCursor(0, 1);
-  lcd.print(song.tempoBPM);
-  lcd.print(F(" BPM"));
+
+  if (currentSongMood != NULL) {
+    printLCDLine(1, currentSongMood);
+  } else {
+    printLCDLine(1, "Mood Unknown");
+  }
 }
 
 void stopSong() {

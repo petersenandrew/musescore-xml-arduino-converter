@@ -149,9 +149,9 @@ Install the MFRC522 library in Arduino IDE:
 4. Edit the `RFID_MAPPINGS` array in `arduino.ino`:
    ```cpp
    const RFIDMapping RFID_MAPPINGS[] = {
-     {{0xDE, 0xAD, 0xBE, 0xEF}, 0},  // Your UID here -> Song 0
-     {{0xCA, 0xFE, 0xBA, 0xBE}, 1},  // Another UID -> Song 1
-     {{0x12, 0x34, 0x56, 0x78}, 2},  // Third UID -> Song 2
+     {{0xDE, 0xAD, 0xBE, 0xEF}, 0, "Song 0 Title", "Mood 0"},
+     {{0xCA, 0xFE, 0xBA, 0xBE}, 1, "Song 1 Title", "Mood 1"},
+     {{0x12, 0x34, 0x56, 0x78}, 2, "Song 2 Title", "Mood 2"},
    };
    ```
 5. Upload again and scan cards to play songs!
