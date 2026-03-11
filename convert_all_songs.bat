@@ -20,6 +20,6 @@ REM node converter.js songs/simple_gifts.musicxml --articulation 2 --append ardu
 node converter.js songs/morning_mood.musicxml --articulation 2 --append arduino.ino
 node converter.js songs/william_tell_overture.musicxml --articulation 2 --append arduino.ino
 node converter.js songs/home_on_the_range.musicxml --articulation 2 --append arduino.ino
-REM node converter.js songs/crossing_field.musicxml --articulation 2 --append arduino.ino
+node converter.js songs/heart_of_oak.musicxml --articulation 2 --append arduino.ino
 echo All songs converted and appended to arduino.ino
 pause
