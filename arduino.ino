@@ -871,11 +871,11 @@ void setup() {
       while(1); // Halt
     }
     
-    Serial.println(F("RFID Music Player Ready"));
-    Serial.println(F("Scan a card to play a song..."));
+    Serial.println(F("Jukebox Ready"));
+    Serial.println(F("Insert a disc to play a song..."));
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print(F("Scan RFID Card"));
+    lcd.print(F("Insert Disc"));
     lcd.setCursor(0, 1);
     lcd.print(F("to play music"));
     
