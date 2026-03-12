@@ -743,6 +743,8 @@ void checkRFID() {
   int8_t songIndex = findSongByRFID(mfrc522.uid.uidByte);
   
   if (songIndex >= 0 && songIndex < NUM_SONGS) {
+    // 2-second delay between detecting the disc and starting playback
+    delay(2000);
     // Switch to this song (even if currently playing another)
     startSong(songIndex);
   } else {
