@@ -505,16 +505,25 @@ const uint8_t NUM_RFID_MAPPINGS = sizeof(RFID_MAPPINGS) / sizeof(RFID_MAPPINGS[0
 const uint8_t SONG_TO_PLAY = 255;
 // SONG_DATA_END
 
-// RFID Pins (Arduino Mega)
-#define RST_PIN 5  // Moved near SPI pins for cleaner wiring
-#define SS_PIN 53   // SPI Slave Select
+// Pin Configuration (See PIN_CONFIGURATION.md for full details)
+// Servo Pin
+const int SERVO_PIN = 4;    // Servo control signal
+
+// Buzzer Pins (PWM Audio Output)
+const int BZ1 = 5;          // Buzzer 1 - Violin
+const int BZ2 = 6;          // Buzzer 2 - Piano Composite
+
+// RFID Module Pins (MFRC522)
+#define RST_PIN 9           // MFRC522 Reset
+#define SS_PIN 10           // SPI Chip Select (CS)
+// SPI Hardware Pins (fixed on Arduino Uno):
+// Pin 11 = MOSI / COPI (Controller Out, Peripheral In)
+// Pin 12 = MISO / CIPO (Controller In, Peripheral Out)
+// Pin 13 = SCK (Serial Clock)
+
 Servo servo;
 
-// Buzzer Pins
-const int BZ1 = 8; // Violin
-const int BZ2 = 9; // Piano Composite
-
-// I2C LCD Display (20=SDA, 21=SCL on Arduino Mega)
+// I2C LCD Display (A4=SDA, A5=SCL on Arduino Uno)
 LiquidCrystal_I2C lcd(0x27, 16, 2); // Address 0x27, 16 chars, 2 lines
 
 MFRC522 mfrc522(SS_PIN, RST_PIN);
@@ -813,17 +822,20 @@ void playSongOnce(uint8_t songIndex) {
 }
 
 void setup() {
-  pinMode(BZ1, OUTPUT);
-  pinMode(BZ2, OUTPUT);
-  pinMode(RST_PIN, OUTPUT);
-  pinMode(SS_PIN, OUTPUT);
-  pinMode(51, OUTPUT); // MOSI (Mega)
-  pinMode(50, INPUT);  // MISO (Mega)
-  pinMode(52, OUTPUT); // SCK (Mega)
-  servo.attach(12);
-  servo.write(100);
+  // Configure pin modes
+  pinMode(BZ1, OUTPUT);           // Buzzer 1
+  pinMode(BZ2, OUTPUT);           // Buzzer 2
+  pinMode(RST_PIN, OUTPUT);       // RFID Reset
+  pinMode(SS_PIN, OUTPUT);        // RFID Chip Select
+  pinMode(11, OUTPUT);            // SPI MOSI / COPI
+  pinMode(12, INPUT);             // SPI MISO / CIPO
+  pinMode(13, OUTPUT);            // SPI SCK
   
-  // Initialize I2C LCD (SDA=20, SCL=21 on Arduino Mega)
+  // Attach servo (hardware PWM capable pin)
+  servo.attach(SERVO_PIN);
+  servo.write(100);  // Initialize servo to home position
+  
+  // Initialize I2C LCD Display (SDA=A4, SCL=A5)
   Wire.begin();
   lcd.init();
   lcd.backlight();
@@ -858,12 +870,7 @@ void setup() {
     
     if (v == 0x00 || v == 0xFF) {
       Serial.println(F("ERROR: Communication failure!"));
-      Serial.println(F("Check wiring (Arduino Mega):"));
-      Serial.println(F("  MISO -> D50"));
-      Serial.println(F("  MOSI -> D51"));
-      Serial.println(F("  SCK  -> D52"));
-      Serial.println(F("  SS   -> D53"));
-      Serial.println(F("  RST  -> D5"));
+      Serial.println(F("Check wiring (Arduino Uno). See PIN_CONFIGURATION.md"));
       Serial.println(F("  VCC  -> 3.3V (NOT 5V!)"));
       lcd.clear();
       lcd.setCursor(0, 0);
